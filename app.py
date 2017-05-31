@@ -1,18 +1,39 @@
 from flask import Flask, render_template, flash, redirect, url_for, session, logging, request
-#from data import Articles
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
 from passlib.hash import sha256_crypt
 from functools import wraps
+from flask_mail import Mail, Message
+
+from itsdangerous import URLSafeTimedSerializer # Confirmation Email
+
+# Use Cred file in differ location - https://stackoverflow.com/questions/13598958/import-modules-from-different-folders
+import sys,os 
+cred_path =  'C:/Users/Forbes/Desktop/Project Dev/Python/'
+sys.path.append(cred_path)
+from credentials import SENDER_EMAIL, SENDER_PASSWORD, FORWARD_EMAIL
+
 
 app = Flask(__name__)
 
-# Config MySQL
+s = URLSafeTimedSerializer('Thisisasecret!')
+
+# Config MySQLdb/ Use Credential File
 app.config['MYSQL_HOST'] = '127.0.0.1' # XAMP
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'myflaskapp'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+
+# Config Flask Mail/ Use Credential File for USERNAME/PASSWORD
+# http://pythonhosted.org/flask-mail/
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465 # gmail SSL
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USERNAME'] = SENDER_EMAIL # 'sender@gmail.com'
+app.config['MAIL_PASSWORD'] = SENDER_PASSWORD # password
+mail = Mail(app)
+
 
 # initialzie MYSQL
 mysql = MySQL(app)
@@ -21,7 +42,7 @@ mysql = MySQL(app)
 # Pulled from file, but implemented to get from db
 #Articles = Articles()
 
-# Decorator
+# Decorator - to check login condition(s)
 def is_logged_in(f):
 	@wraps(f)
 	def wrap(*args, **kwargs):
@@ -32,7 +53,6 @@ def is_logged_in(f):
 			return redirect(url_for('login'))
 	return wrap
 # Decorator
-
 
 
 #Index
@@ -81,7 +101,48 @@ def article(id):
 
 	return render_template('article.html', article=article)
 
+# Contact Form Class
+class ContactForm(Form):
+	name = StringField('Name',[validators.Length(min=1,max=50)])
+	email = StringField('Email',[validators.Length(min=4, max=25)])
+	comment = TextAreaField('Body', [validators.Length(min=30)])
 
+# Contact Us
+@app.route('/contact', methods=['GET','POST'])
+def contact():
+	#return render_template('contact.html')
+	form = ContactForm(request.form)
+	# Write comment to db and email (Challange)
+	# Writing to db, create a comments db
+	if request.method == 'POST' and form.validate():
+		name = form.name.data
+		email = form.email.data
+		comment = form.comment.data
+		# Create subject area or summarize comment(take a few lines)
+
+		# Create Cursor
+		cur = mysql.connection.cursor()
+		
+		# Execute query
+		cur.execute("INSERT INTO comments(name, email, comment) VALUES(%s, %s, %s)",(name,email,comment))
+		
+		# Commit
+		mysql.connection.commit()
+		
+		# Close connection
+		cur.close()
+
+		# Comments submitted
+		flash('Thanks for the message. We will get right back to you.','success')
+		
+		# Send to email also using FLASK-MAIL API, sender=
+		# Use validation signature - Pretty Printed
+		msg = Message("MyFlask App - Contact Us", sender=SENDER_EMAIL, recipients=[FORWARD_EMAIL])
+		msg.body = (str(form.comment.data))
+		mail.send(msg)
+		
+		return redirect(url_for('login'))
+	return render_template('contact.html', form=form)
 
 # Register Form Class
 class RegisterForm(Form):
@@ -93,7 +154,6 @@ class RegisterForm(Form):
 			validators.EqualTo('confirm', message='Passwords do not match')
 		])
 	confirm = PasswordField('Confirm Password')
-
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -236,7 +296,6 @@ def add_article():
 
 	return render_template('add_article.html',form=form)
 	
-
 # Edit Article Route
 @app.route('/edit_article/<string:id>', methods=['GET', 'POST'])
 @is_logged_in
@@ -296,6 +355,42 @@ def delete_article(id):
 	flash('Article Deleted','success')
 
 	return redirect(url_for('dashboard'))
+
+
+################################                   
+#   FLASK FUNCTIONALITIES      #
+# - added features using flask #
+#                              #
+################################
+# Emailing - Use for resetting password
+def send_mail():
+	try:
+		msg = Message("MyFlask App - Contact Us")
+		sender = 'pytonlogin@gmail.com'
+		recipients=["damianoforbes@gmail.com"]
+		msg.body = form.comment.data
+	except Exception as e:
+		return render_template('login.html', form=form)
+
+# Use signature to send email (confirm email from registration) - Pretty Printed
+# send configuration to submitted email
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
