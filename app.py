@@ -9,7 +9,7 @@ from itsdangerous import URLSafeTimedSerializer # Confirmation Email
 
 # Use Cred file in differ location - https://stackoverflow.com/questions/13598958/import-modules-from-different-folders
 import sys,os 
-cred_path =  'C:/Users/Forbes/Desktop/Project Dev/Python/'
+cred_path =  'C:/Users/<user profile>/Desktop/Project Dev/Python/'
 sys.path.append(cred_path)
 from credentials import SENDER_EMAIL, SENDER_PASSWORD, FORWARD_EMAIL
 
@@ -366,8 +366,8 @@ def delete_article(id):
 def send_mail():
 	try:
 		msg = Message("MyFlask App - Contact Us")
-		sender = 'pytonlogin@gmail.com'
-		recipients=["damianoforbes@gmail.com"]
+		sender = SENDER_EMAIL
+		recipients=[FORWARD_EMAIL]
 		msg.body = form.comment.data
 	except Exception as e:
 		return render_template('login.html', form=form)
